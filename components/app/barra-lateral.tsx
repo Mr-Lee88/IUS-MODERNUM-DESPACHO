@@ -40,6 +40,7 @@ export function BarraLateral({
           width={800}
           height={166}
           priority
+          sizes="220px"
           className="h-auto w-[85%]"
         />
       </Link>

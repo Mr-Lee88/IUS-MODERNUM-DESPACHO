@@ -11,7 +11,7 @@ export function BarraSuperior() {
       {/* Marca, solo en teléfono: ahí no hay barra lateral */}
       <Link href="/" className="flex items-center md:hidden" aria-label="IUS MODERNUM, ir al inicio">
         <span className="flex items-center rounded-sm bg-[var(--verde)] px-2 py-1.5">
-          <Image src="/logo.png" alt="IUS MODERNUM" width={800} height={166} priority className="h-5 w-auto" />
+          <Image src="/logo.png" alt="IUS MODERNUM" width={800} height={166} priority sizes="120px" className="h-5 w-auto" />
         </span>
       </Link>
 

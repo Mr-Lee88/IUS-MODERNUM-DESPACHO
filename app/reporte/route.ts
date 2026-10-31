@@ -1,10 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { generarReporte } from "@/lib/pdf/reporte";
 import { reunirReporte } from "@/lib/reportes";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 /** Reporte del despacho en PDF. Las cifras de dinero solo salen para el socio. */
-export async function GET(_peticion: NextRequest) {
+export async function GET() {
   const supabase = await crearClienteServidor();
 
   const { data: { user } } = await supabase.auth.getUser();

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus, UserRound } from "lucide-react";
 import { Indicador, Seccion } from "@/components/app/piezas";
+import { hoyIso, sumarDias } from "@/lib/agenda";
 import { requerirSesion } from "@/lib/sesion";
 import { uno } from "@/lib/supabase/relaciones";
 import { crearClienteServidor } from "@/lib/supabase/server";
@@ -20,8 +21,8 @@ export default async function PaginaPanel() {
   const perfil = await requerirSesion();
   const supabase = await crearClienteServidor();
 
-  const hoy = new Date().toISOString().slice(0, 10);
-  const enOchoDias = new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10);
+  const hoy = hoyIso();
+  const enOchoDias = sumarDias(hoy, 8);
 
   const [activos, totales, clientes, terminos, audiencias, recientes] = await Promise.all([
     supabase.from("asunto").select("id", { count: "exact", head: true })

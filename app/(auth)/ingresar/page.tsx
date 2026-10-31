@@ -24,6 +24,7 @@ export default async function PaginaIngresar({
               width={800}
               height={166}
               priority
+              sizes="300px"
               className="h-auto w-[82%]"
             />
           </span>

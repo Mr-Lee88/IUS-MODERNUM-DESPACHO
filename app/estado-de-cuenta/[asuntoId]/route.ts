@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { generarEstadoDeCuenta, type Renglon } from "@/lib/pdf/estado-de-cuenta";
+import { generarEstadoDeCuenta } from "@/lib/pdf/estado-de-cuenta";
 import { uno } from "@/lib/supabase/relaciones";
 
 /**
@@ -52,9 +52,6 @@ export async function GET(
 
   const parteCliente = (asunto.partes ?? []).find((p) => p.es_nuestro_cliente);
   const clienteRef = uno(parteCliente?.cliente);
-
-  const aRenglon = (lista: { concepto: string; importe: number; fecha: string }[], nota?: (x: never) => string | null): Renglon[] =>
-    lista.map((x) => ({ concepto: x.concepto, fecha: x.fecha, importe: Number(x.importe), nota: nota?.(x as never) ?? null }));
 
   const pdf = await generarEstadoDeCuenta({
     despacho: "IUS MODERNUM Abogados",

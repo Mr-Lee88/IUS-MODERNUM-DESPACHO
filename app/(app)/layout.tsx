@@ -1,12 +1,15 @@
-import { rutaPublica } from "@/lib/archivos-publicos";
 import { BarraLateral, NavegacionMovil } from "@/components/app/barra-lateral";
 import { BarraSuperior } from "@/components/app/barra-superior";
 import { requerirSesion } from "@/lib/sesion";
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const perfil = await requerirSesion();
-  // La ilustración de la barra es opcional: si el archivo no está, no se pide.
-  const hayIlustracion = rutaPublica("ilustracion.webp") !== null;
+  // La ilustración de la barra es opcional. Es una bandera, no una consulta al
+  // disco: mirar el sistema de archivos en tiempo de ejecución obliga a Next a
+  // empaquetar todo el proyecto dentro de la función, y en Vercel la carpeta
+  // public ni siquiera existe ahí. Al añadir public/ilustracion.webp, se pone
+  // en true.
+  const hayIlustracion = false;
 
   return (
     <div className="flex min-h-screen">

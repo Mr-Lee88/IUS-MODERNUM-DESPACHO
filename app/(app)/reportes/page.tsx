@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Download, FileText } from "lucide-react";
 import { Indicador, Seccion } from "@/components/app/piezas";
 import { comoFalta, fechaCorta } from "@/lib/agenda";

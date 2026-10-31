@@ -1,6 +1,6 @@
 import { type PDFPage } from "pdf-lib";
 import {
-  ALTO, ALTO_MEMBRETE, ANCHO, DORADO, GRAFITO, GRIS, LINEA, MARFIL, MARGEN, PESOS,
+  ALTO, ANCHO, DORADO, GRAFITO, GRIS, LINEA, MARFIL, MARGEN, PESOS,
   UTIL, VERDE, abrirDocumento, dibujarMembrete, dibujarPies, fechaDelForo, recortar,
 } from "./comun";
 

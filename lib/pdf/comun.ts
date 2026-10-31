@@ -1,6 +1,5 @@
-import { readFile } from "node:fs/promises";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { rutaPublica } from "@/lib/archivos-publicos";
+import { logoPng } from "./logo";
 
 /**
  * Lo que comparten todos los documentos que emite el sistema: la paleta del
@@ -79,25 +78,21 @@ export async function dibujarMembrete(
 ) {
   pagina.drawRectangle({ x: 0, y: ALTO - ALTO_MEMBRETE, width: ANCHO, height: ALTO_MEMBRETE, color: VERDE });
 
-  const ruta = rutaPublica("logo.png");
   let huboLogo = false;
-  if (ruta) {
-    try {
-      const logo = await d.pdf.embedPng(await readFile(ruta));
-      const anchoLogo = 178;
-      const escala = anchoLogo / logo.width;
-      pagina.drawImage(logo, {
-        x: MARGEN,
-        y: ALTO - ALTO_MEMBRETE + (ALTO_MEMBRETE - logo.height * escala) / 2,
-        width: anchoLogo,
-        height: logo.height * escala,
-      });
-      huboLogo = true;
-    } catch (e) {
-      console.warn("No se pudo embeber el logo en el PDF:", e);
-    }
-  } else {
-    console.warn("No se encontró public/logo.png: el PDF sale sin membrete.");
+  try {
+    const logo = await d.pdf.embedPng(logoPng());
+    const anchoLogo = 178;
+    const escala = anchoLogo / logo.width;
+    pagina.drawImage(logo, {
+      x: MARGEN,
+      y: ALTO - ALTO_MEMBRETE + (ALTO_MEMBRETE - logo.height * escala) / 2,
+      width: anchoLogo,
+      height: logo.height * escala,
+    });
+    huboLogo = true;
+  } catch (e) {
+    // Si esto falla, el logo empotrado está corrupto. Se avisa en vez de callar.
+    console.error("No se pudo embeber el logo en el PDF:", e);
   }
   if (!huboLogo) {
     pagina.drawText("IUS MODERNUM", {

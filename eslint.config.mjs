@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // Archivo generado: una cadena base64 de 111 KB que nadie edita a mano.
+    "lib/pdf/logo.ts",
     "out/**",
     "build/**",
     "next-env.d.ts",
