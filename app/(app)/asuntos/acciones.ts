@@ -35,7 +35,7 @@ export async function crearAsunto(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  await requerirSesion();
+  const perfil = await requerirSesion();
 
   const r = esquemaAsunto.safeParse(Object.fromEntries(datos));
   if (!r.success) return { error: r.error.issues[0].message };
@@ -48,7 +48,6 @@ export async function crearAsunto(
   }
 
   const supabase = await crearClienteServidor();
-  const { data: { user } } = await supabase.auth.getUser();
 
   const { data: asunto, error } = await supabase
     .from("asunto")
@@ -65,7 +64,7 @@ export async function crearAsunto(
       fecha_apertura: d.fecha_apertura,
       cuantia: d.cuantia ? Number(d.cuantia) : null,
       observaciones: nulo(d.observaciones),
-      creado_por: user?.id ?? null,
+      creado_por: perfil.id,
     })
     .select("id")
     .single();
@@ -125,14 +124,13 @@ export async function registrarGestion(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  await requerirSesion();
+  const perfil = await requerirSesion();
 
   const r = esquemaGestion.safeParse(Object.fromEntries(datos));
   if (!r.success) return { error: r.error.issues[0].message };
   const d = r.data;
 
   const supabase = await crearClienteServidor();
-  const { data: { user } } = await supabase.auth.getUser();
 
   // La clase (hecho procesal / nota interna / administrativa) la manda el tipo,
   // no el capturista: así la bitácora queda consistente.
@@ -154,7 +152,7 @@ export async function registrarGestion(
     descripcion: nulo(d.descripcion),
     // Una nota interna nunca se publica al cliente, aunque marquen la casilla.
     publicada_al_cliente: esNotaInterna ? false : d.publicada_al_cliente === "on",
-    autor_id: user?.id ?? null,
+    autor_id: perfil.id,
   });
 
   if (error) return { error: `No se pudo anotar: ${error.message}` };

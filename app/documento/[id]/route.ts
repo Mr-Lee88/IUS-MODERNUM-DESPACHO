@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { perfilDeLaPeticion } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -18,8 +19,7 @@ export async function GET(
   const { id } = await params;
   const supabase = await crearClienteServidor();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new NextResponse("No autorizado", { status: 401 });
+  if (!(await perfilDeLaPeticion())) return new NextResponse("No autorizado", { status: 401 });
 
   const { data: documento } = await supabase
     .from("documento")

@@ -36,14 +36,13 @@ export async function crearCliente(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  await requerirSesion();
+  const perfil = await requerirSesion();
 
   const r = esquema.safeParse(Object.fromEntries(datos));
   if (!r.success) return { error: r.error.issues[0].message };
   const d = r.data;
 
   const supabase = await crearClienteServidor();
-  const { data: { user } } = await supabase.auth.getUser();
 
   // Una persona moral sin representante se puede guardar, pero conviene avisar:
   // sin representante no hay quién firme. No se bloquea, se deja en observaciones.
@@ -64,7 +63,7 @@ export async function crearCliente(
       cliente_desde: vacioANulo(d.cliente_desde),
       estado_cliente: d.estado_cliente,
       observaciones_internas: vacioANulo(d.observaciones_internas),
-      creado_por: user?.id ?? null,
+      creado_por: perfil.id,
     })
     .select("id")
     .single();

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { perfilDeLaPeticion } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { generarEstadoDeCuenta } from "@/lib/pdf/estado-de-cuenta";
 import { uno } from "@/lib/supabase/relaciones";
@@ -18,12 +19,9 @@ export async function GET(
   const { asuntoId } = await params;
   const supabase = await crearClienteServidor();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new NextResponse("No autorizado", { status: 401 });
-
-  const { data: perfil } = await supabase
-    .from("perfil").select("nombre, rol").eq("id", user.id).single();
-  if (perfil?.rol !== "socio") return new NextResponse("No encontrado", { status: 404 });
+  const perfil = await perfilDeLaPeticion();
+  if (!perfil) return new NextResponse("No autorizado", { status: 401 });
+  if (perfil.rol !== "socio") return new NextResponse("No encontrado", { status: 404 });
 
   const { data: asunto } = await supabase
     .from("asunto")
