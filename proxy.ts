@@ -27,8 +27,7 @@ export function proxy(request: NextRequest) {
   const ruta = request.nextUrl.pathname;
 
   // El manual se lee antes de iniciar sesión: es la puerta de entrada.
-  const esPublica = ruta.startsWith("/ingresar") || ruta.startsWith("/auth")
-    || ruta.startsWith("/manual");
+  const esPublica = ruta.startsWith("/ingresar") || ruta.startsWith("/manual");
 
   // @supabase/ssr guarda la sesión en `sb-<ref>-auth-token`, partida en
   // `.0`, `.1`… cuando no cabe en una cookie.

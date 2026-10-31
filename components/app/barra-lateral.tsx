@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { iniciales, type Perfil } from "@/lib/perfil";
+import { cerrarSesion } from "@/app/auth/acciones";
 
 /** §3: menú lateral permanente en escritorio. En teléfono se usa la barra inferior. */
 const ENLACES = [
@@ -109,10 +110,18 @@ export function BarraLateral({
             <Settings className="size-3.5" aria-hidden />
             Configuración
           </Link>
-          <Link href="/auth/cerrar" className="flex items-center gap-3 rounded-sm px-3 py-2 text-xs text-white/70 hover:bg-[var(--verde-claro)] hover:text-white">
-            <LogOut className="size-3.5" aria-hidden />
-            Cerrar sesión
-          </Link>
+          {/* Un formulario, no un enlace: Next precarga los enlaces visibles y
+              el menú está siempre visible. Con un GET, el navegador cerraba la
+              sesión él solo. Ver app/auth/acciones.ts. */}
+          <form action={cerrarSesion}>
+            <button
+              type="submit"
+              className="flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-xs text-white/70 hover:bg-[var(--verde-claro)] hover:text-white"
+            >
+              <LogOut className="size-3.5" aria-hidden />
+              Cerrar sesión
+            </button>
+          </form>
         </div>
       </div>
     </aside>
