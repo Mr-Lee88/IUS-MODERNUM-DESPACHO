@@ -1,3 +1,10 @@
+# pnpm 10 no ejecuta los scripts de instalación de una dependencia hasta que se
+# autorizan uno por uno. Sin esto, `pnpm install` termina en error y el
+# despliegue de Vercel falla con ERR_PNPM_IGNORED_BUILDS.
+#
+# Los dos son binarios nativos que se compilan al instalar:
+#   esbuild        lo usa tsx para ejecutar los scripts de scripts/
+#   unrs-resolver  lo usa eslint para resolver importaciones
 allowBuilds:
-  esbuild: set this to true or false
-  unrs-resolver: set this to true or false
+  esbuild: true
+  unrs-resolver: true
