@@ -21,7 +21,13 @@ const ENLACES = [
   { href: "/reportes", etiqueta: "Reportes", icono: Gavel },
 ];
 
-export function BarraLateral({ perfil }: { perfil: Perfil }) {
+export function BarraLateral({
+  perfil,
+  hayIlustracion,
+}: {
+  perfil: Perfil;
+  hayIlustracion?: boolean;
+}) {
   const ruta = usePathname();
 
   return (
@@ -69,14 +75,16 @@ export function BarraLateral({ perfil }: { perfil: Perfil }) {
         solo se ve el verde.
       */}
       <div className="relative min-h-10 flex-1 overflow-hidden" aria-hidden>
-        <div
-          className="absolute inset-x-0 bottom-0 h-[58%] bg-cover bg-bottom bg-no-repeat opacity-40"
-          style={{
-            backgroundImage: "url(/ilustracion.webp)",
-            maskImage: "linear-gradient(to bottom, transparent, black 60%)",
-            WebkitMaskImage: "linear-gradient(to bottom, transparent, black 60%)",
-          }}
-        />
+        {hayIlustracion && (
+          <div
+            className="absolute inset-x-0 bottom-0 h-[58%] bg-cover bg-bottom bg-no-repeat opacity-40"
+            style={{
+              backgroundImage: "url(/ilustracion.webp)",
+              maskImage: "linear-gradient(to bottom, transparent, black 60%)",
+              WebkitMaskImage: "linear-gradient(to bottom, transparent, black 60%)",
+            }}
+          />
+        )}
       </div>
 
       <div className="relative border-t border-white/10 bg-[var(--verde)] p-3">
