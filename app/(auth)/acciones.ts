@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { crearClienteServidor } from "@/lib/supabase/server";
+import { crearClienteDeAcceso } from "@/lib/supabase/server";
 
 const esquemaIngreso = z.object({
   correo: z.string().email("El correo no es válido"),
@@ -46,7 +46,7 @@ export async function ingresar(
   });
   if (!r.success) return { error: r.error.issues[0].message };
 
-  const supabase = await crearClienteServidor();
+  const supabase = await crearClienteDeAcceso();
   const { error } = await supabase.auth.signInWithPassword({
     email: r.data.correo,
     password: r.data.contrasena,
@@ -71,7 +71,7 @@ export async function crearPrimerUsuario(
   });
   if (!r.success) return { error: r.error.issues[0].message };
 
-  const supabase = await crearClienteServidor();
+  const supabase = await crearClienteDeAcceso();
 
   const { data: yaHay } = await supabase.rpc("hay_usuarios");
   if (yaHay) return { error: "El despacho ya tiene usuarios. Pida su cuenta al socio." };
