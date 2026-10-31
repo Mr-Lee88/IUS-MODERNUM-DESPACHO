@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Lock, Users } from "lucide-react";
+import { FileText, Lock, Users } from "lucide-react";
 import { Seccion } from "@/components/app/piezas";
 import { requerirSesion } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { uno } from "@/lib/supabase/relaciones";
 import { Anotar } from "./anotar";
+import { Subir } from "./subir";
 
 /**
  * Detalle del asunto. Cinco pestañas, en el orden del §4:
@@ -20,6 +21,13 @@ const PESTANAS: { clave: string; etiqueta: string; soloSocio?: boolean }[] = [
   { clave: "partes", etiqueta: "Partes" },
   { clave: "honorarios", etiqueta: "Honorarios", soloSocio: true },
 ];
+
+/** Cómo se lee cada nivel de acceso en pantalla. */
+const ACCESO: Record<string, string> = {
+  socio: "Solo el socio",
+  equipo: "El despacho",
+  cliente: "También el cliente",
+};
 
 const CLASES: Record<string, string> = {
   hecho_procesal: "Hecho procesal",
@@ -86,6 +94,10 @@ export default async function PaginaAsunto({
         .order("fecha_limite", { nullsFirst: false }),
       supabase.from("tipo_gestion").select("clave, nombre, clase").order("orden"),
     ]);
+
+  const { data: tiposDocumento } = await supabase
+    .from("tipo_documento").select("clave, nombre").order("orden");
+  const nombreTipoDoc = new Map((tiposDocumento ?? []).map((t) => [t.clave, t.nombre]));
 
   const cliente = (partes ?? []).find((pa) => pa.es_nuestro_cliente);
   const materia = uno(asunto.materia);
@@ -188,11 +200,49 @@ export default async function PaginaAsunto({
 
           {activa === "documentos" && (
             <Seccion titulo="Documentos del asunto" nota={`${documentos?.length ?? 0}`}>
-              <p className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
-                {documentos?.length
-                  ? `${documentos.length} documentos.`
-                  : "Todavía no hay documentos. La subida al almacenamiento privado llega en el paso 8."}
-              </p>
+              {!documentos?.length ? (
+                <p className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
+                  Todavía no hay documentos en este asunto.
+                </p>
+              ) : (
+                <ul className="divide-y divide-[var(--border)]">
+                  {documentos.map((d) => (
+                    <li key={d.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                      <FileText className="size-4 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        {/* La descarga pasa por el servidor: firma un enlace de dos minutos. */}
+                        <a
+                          href={`/documento/${d.id}`}
+                          className="font-medium text-[var(--verde)] underline-offset-2 hover:underline"
+                        >
+                          {d.nombre_original}
+                        </a>
+                        <span className="block text-xs text-[var(--muted-foreground)]">
+                          {nombreTipoDoc.get(d.tipo_documental) ?? d.tipo_documental}
+                          {d.fecha_documento && ` · ${d.fecha_documento}`}
+                          {d.tamano != null && ` · ${Math.max(1, Math.round(d.tamano / 1024))} KB`}
+                          {d.descripcion && ` · ${d.descripcion}`}
+                        </span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 border border-[var(--border)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
+                        {d.nivel_acceso === "socio" && <Lock className="size-3" aria-hidden />}
+                        {ACCESO[d.nivel_acceso] ?? d.nivel_acceso}
+                      </span>
+                      {d.estado_revision === "pendiente" && (
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--proximo)]">
+                          Por revisar
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Subir
+                asuntoId={asunto.id}
+                tipos={tiposDocumento ?? []}
+                esSocio={perfil.rol === "socio"}
+                hoy={hoy}
+              />
             </Seccion>
           )}
 
