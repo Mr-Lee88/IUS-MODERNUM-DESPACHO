@@ -1,4 +1,4 @@
-import { Gavel } from "lucide-react";
+import Image from "next/image";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { FormularioIngreso } from "./formulario";
 
@@ -17,13 +17,18 @@ export default async function PaginaIngresar({
     <div className="flex min-h-screen items-center justify-center bg-[var(--marfil)] p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="flex size-12 items-center justify-center bg-[var(--verde)] text-[var(--dorado)]">
-            <Gavel className="size-5" aria-hidden />
+          <span className="flex w-full justify-center rounded-sm bg-[var(--verde)] px-6 py-5">
+            <Image
+              src="/logo.png"
+              alt="IUS MODERNUM Abogados"
+              width={800}
+              height={166}
+              priority
+              className="h-auto w-[82%]"
+            />
           </span>
-          <h1 className="mt-3 font-[family-name:var(--font-serif)] text-xl tracking-[0.08em] text-[var(--verde)]">
-            IUS MODERNUM
-          </h1>
-          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+          <h1 className="sr-only">IUS MODERNUM</h1>
+          <p className="mt-3 text-xs text-[var(--muted-foreground)]">
             Toda la información de un asunto, en segundos.
           </p>
         </div>

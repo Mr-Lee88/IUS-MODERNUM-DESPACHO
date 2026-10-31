@@ -1,19 +1,17 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { Gavel, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Buscador } from "./buscador";
 
 export function BarraSuperior() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-[var(--border)] bg-[var(--marfil)]/95 px-4 backdrop-blur md:px-6">
       {/* Marca, solo en teléfono: ahí no hay barra lateral */}
-      <Link href="/" className="flex items-center gap-2 md:hidden">
-        <span className="flex size-9 items-center justify-center bg-[var(--verde)] text-[var(--dorado)]">
-          <Gavel className="size-4" aria-hidden />
-        </span>
-        <span className="font-[family-name:var(--font-serif)] text-sm tracking-[0.06em] text-[var(--verde)]">
-          IUS MODERNUM
+      <Link href="/" className="flex items-center md:hidden" aria-label="IUS MODERNUM, ir al inicio">
+        <span className="flex items-center rounded-sm bg-[var(--verde)] px-2 py-1.5">
+          <Image src="/logo.png" alt="IUS MODERNUM" width={800} height={166} priority className="h-5 w-auto" />
         </span>
       </Link>
 

@@ -10,6 +10,7 @@ const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 export const metadata: Metadata = {
   title: { default: "IUS MODERNUM", template: "%s · IUS MODERNUM" },
   description: "Toda la información de un asunto, en segundos.",
+  icons: { icon: "/icon.png" },
 };
 
 export const viewport = {

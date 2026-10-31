@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -25,23 +26,21 @@ export function BarraLateral({ perfil }: { perfil: Perfil }) {
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col bg-[var(--verde)] text-white md:flex">
-      <Link href="/" className="flex items-center gap-3 px-5 py-5">
-        <span className="flex size-9 items-center justify-center border border-[var(--dorado)] text-[var(--dorado)]">
-          <Gavel className="size-4" aria-hidden />
-        </span>
-        <span className="leading-tight">
-          <span className="block font-[family-name:var(--font-serif)] text-base tracking-[0.08em]">
-            IUS MODERNUM
-          </span>
-          <span className="block text-[10px] uppercase tracking-[0.18em] text-[var(--dorado)]">
-            Abogados
-          </span>
-        </span>
+      {/* El logo no llega a los bordes: lleva aire a los lados y abajo. */}
+      <Link href="/" className="block px-6 pb-4 pt-6" aria-label="IUS MODERNUM, ir al inicio">
+        <Image
+          src="/logo.png"
+          alt="IUS MODERNUM Abogados"
+          width={800}
+          height={166}
+          priority
+          className="h-auto w-[85%]"
+        />
       </Link>
 
-      <div className="filete-dorado mx-5 opacity-40" />
+      <div className="filete-dorado mx-6 opacity-40" />
 
-      <nav className="mt-4 flex-1 space-y-0.5 px-3" aria-label="Navegación principal">
+      <nav className="mt-4 space-y-0.5 px-3" aria-label="Navegación principal">
         {ENLACES.filter((e) => !e.soloSocio || perfil.rol === "socio").map(({ href, etiqueta, icono: Icono }) => {
           const activo = href === "/" ? ruta === "/" : ruta.startsWith(href);
           return (
@@ -63,7 +62,24 @@ export function BarraLateral({ perfil }: { perfil: Perfil }) {
         })}
       </nav>
 
-      <div className="border-t border-white/10 p-3">
+      {/*
+        El hueco entre el menú y el pie. La ilustración se asienta abajo, ocupa
+        solo una parte de ese espacio y se funde con el verde por arriba: es un
+        fondo, no una fotografía que compita con el menú. Si el archivo no está,
+        solo se ve el verde.
+      */}
+      <div className="relative min-h-10 flex-1 overflow-hidden" aria-hidden>
+        <div
+          className="absolute inset-x-0 bottom-0 h-[58%] bg-cover bg-bottom bg-no-repeat opacity-40"
+          style={{
+            backgroundImage: "url(/ilustracion.webp)",
+            maskImage: "linear-gradient(to bottom, transparent, black 60%)",
+            WebkitMaskImage: "linear-gradient(to bottom, transparent, black 60%)",
+          }}
+        />
+      </div>
+
+      <div className="relative border-t border-white/10 bg-[var(--verde)] p-3">
         <div className="flex items-center gap-3 px-2 py-2">
           <span className="flex size-8 items-center justify-center rounded-full bg-[var(--verde-claro)] text-xs font-medium">
             {perfil.iniciales ?? iniciales(perfil.nombre)}
