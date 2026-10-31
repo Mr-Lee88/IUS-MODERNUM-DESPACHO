@@ -1,0 +1,39 @@
+# Dependencias
+/node_modules
+/.pnp
+.pnp.*
+
+# Compilación
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# Variables de entorno — NINGUNA llave entra al repositorio.
+# El repositorio es público: cualquier archivo con credenciales queda expuesto
+# para siempre, incluso si después se borra del árbol de trabajo.
+.env
+.env.*
+!.env.example
+
+# Datos del despacho — nunca se versionan.
+# Expedientes, clientes y documentos son información sujeta a secreto profesional.
+/datos/
+*.xlsx
+*.xls
+*.docx
+*.pdf
+!plantilla-*.xlsx
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Registros
+*.log
+npm-debug.log*
+pnpm-debug.log*

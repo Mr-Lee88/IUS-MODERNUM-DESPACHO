@@ -1,0 +1,126 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  CalendarClock, FileText, FolderOpen, Gavel, LayoutList,
+  LogOut, Receipt, Settings, UserRound, Users,
+} from "lucide-react";
+import { cn } from "cn";
+
+/** §3: menú lateral permanente en escritorio. En teléfono se usa la barra inferior. */
+const ENLACES = [
+  { href: "/", etiqueta: "Asuntos del día", icono: LayoutList },
+  { href: "/asuntos", etiqueta: "Asuntos", icono: FolderOpen },
+  { href: "/clientes", etiqueta: "Clientes", icono: Users },
+  { href: "/agenda", etiqueta: "Agenda y términos", icono: CalendarClock },
+  { href: "/documentos", etiqueta: "Documentos", icono: FileText },
+  { href: "/honorarios", etiqueta: "Honorarios", icono: Receipt, soloSocio: true },
+  { href: "/reportes", etiqueta: "Reportes", icono: Gavel },
+];
+
+export function BarraLateral({ rol }: { rol: string }) {
+  const ruta = usePathname();
+
+  return (
+    <aside className="hidden w-64 shrink-0 flex-col bg-[var(--verde)] text-white md:flex">
+      <Link href="/" className="flex items-center gap-3 px-5 py-5">
+        <span className="flex size-9 items-center justify-center border border-[var(--dorado)] text-[var(--dorado)]">
+          <Gavel className="size-4" aria-hidden />
+        </span>
+        <span className="leading-tight">
+          <span className="block font-[family-name:var(--font-serif)] text-base tracking-[0.08em]">
+            IUS MODERNUM
+          </span>
+          <span className="block text-[10px] uppercase tracking-[0.18em] text-[var(--dorado)]">
+            Abogados
+          </span>
+        </span>
+      </Link>
+
+      <div className="filete-dorado mx-5 opacity-40" />
+
+      <nav className="mt-4 flex-1 space-y-0.5 px-3" aria-label="Navegación principal">
+        {ENLACES.filter((e) => !e.soloSocio || rol === "socio").map(({ href, etiqueta, icono: Icono }) => {
+          const activo = href === "/" ? ruta === "/" : ruta.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={activo ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm transition-colors",
+                "hover:bg-[var(--verde-claro)]",
+                activo && "bg-[var(--verde-claro)] font-medium",
+              )}
+            >
+              <Icono className="size-4 shrink-0" aria-hidden />
+              <span>{etiqueta}</span>
+              {activo && <span className="ml-auto h-4 w-0.5 bg-[var(--dorado)]" aria-hidden />}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="border-t border-white/10 p-3">
+        <div className="flex items-center gap-3 px-2 py-2">
+          <span className="flex size-8 items-center justify-center rounded-full bg-[var(--verde-claro)] text-xs font-medium">
+            IL
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-sm">Irving Lizama</span>
+            <span className="block text-[10px] uppercase tracking-wider text-[var(--dorado)]">
+              {rol}
+            </span>
+          </span>
+        </div>
+        <div className="mt-1 space-y-0.5">
+          <Link href="/ajustes" className="flex items-center gap-3 rounded-sm px-3 py-2 text-xs text-white/70 hover:bg-[var(--verde-claro)] hover:text-white">
+            <Settings className="size-3.5" aria-hidden />
+            Configuración
+          </Link>
+          <Link href="/auth/cerrar" className="flex items-center gap-3 rounded-sm px-3 py-2 text-xs text-white/70 hover:bg-[var(--verde-claro)] hover:text-white">
+            <LogOut className="size-3.5" aria-hidden />
+            Cerrar sesión
+          </Link>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+/** Barra inferior de teléfono: solo las cuatro acciones que el prompt llama prioritarias. */
+export function NavegacionMovil() {
+  const ruta = usePathname();
+  const items = [
+    { href: "/", etiqueta: "Hoy", icono: LayoutList },
+    { href: "/asuntos", etiqueta: "Asuntos", icono: FolderOpen },
+    { href: "/agenda", etiqueta: "Agenda", icono: CalendarClock },
+    { href: "/clientes", etiqueta: "Clientes", icono: UserRound },
+  ];
+
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--border)] bg-white md:hidden"
+      aria-label="Navegación"
+    >
+      {items.map(({ href, etiqueta, icono: Icono }) => {
+        const activo = href === "/" ? ruta === "/" : ruta.startsWith(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-current={activo ? "page" : undefined}
+            className={cn(
+              "flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[11px]",
+              activo ? "text-[var(--verde)]" : "text-[var(--muted-foreground)]",
+            )}
+          >
+            <Icono className="size-5" aria-hidden />
+            {etiqueta}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

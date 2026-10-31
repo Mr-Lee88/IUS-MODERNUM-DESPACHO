@@ -1,0 +1,131 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * IUS MODERNUM · identidad visual
+ * Paleta fijada en el §3 del prompt maestro. El dorado claro (#D8C5A0) da 1.7:1
+ * de contraste sobre blanco, así que SOLO se usa en filetes, bordes y logotipo.
+ * Para acentos que lleven texto existe --dorado-tinta (#8A6D32), que sí se lee.
+ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-heading: var(--font-serif);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Tokens propios del despacho */
+  --color-verde: var(--verde);
+  --color-verde-claro: var(--verde-claro);
+  --color-marfil: var(--marfil);
+  --color-grafito: var(--grafito);
+  --color-dorado: var(--dorado);
+  --color-dorado-tinta: var(--dorado-tinta);
+
+  /* Estados procesales: se acompañan siempre de texto e icono, nunca solo color */
+  --color-vence-hoy: var(--vence-hoy);
+  --color-proximo: var(--proximo);
+  --color-cumplido: var(--cumplido);
+  --color-por-verificar: var(--por-verificar);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  /* Paleta del §3 */
+  --verde: #103d32;
+  --verde-claro: #285f50;
+  --marfil: #f7f6f2;
+  --grafito: #303a40;
+  --dorado: #d8c5a0;
+  --dorado-tinta: #8a6d32;
+
+  /* Mapeo a los tokens de shadcn */
+  --background: var(--marfil);
+  --foreground: var(--grafito);
+  --card: #ffffff;
+  --card-foreground: var(--grafito);
+  --popover: #ffffff;
+  --popover-foreground: var(--grafito);
+  --primary: var(--verde);
+  --primary-foreground: #ffffff;
+  --secondary: #ecebe5;
+  --secondary-foreground: var(--verde);
+  --muted: #efeee9;
+  --muted-foreground: #6b7076;
+  --accent: #e7eae7;
+  --accent-foreground: var(--verde);
+  --destructive: #8c2f2f;
+  --destructive-foreground: #ffffff;
+  --border: #dddbd3;
+  --input: #dddbd3;
+  --ring: var(--verde-claro);
+
+  /* Estados. Reservados para lo que de verdad lo requiere (§3). */
+  --vence-hoy: #8c2f2f;
+  --proximo: #8a5a1b;
+  --cumplido: #285f50;
+  --por-verificar: #5b6068;
+
+  --radius: 0.25rem; /* Institucional: esquinas sobrias, no redondeadas */
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), system-ui, sans-serif;
+  }
+
+  /* §3: todos los títulos y encabezados principales en MAYÚSCULAS, con serif */
+  h1, h2, h3, .titulo {
+    font-family: var(--font-serif), Georgia, serif;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Tablas, formularios y datos: sans serif, legibilidad antes que decoración */
+  table, input, select, textarea, .datos {
+    font-family: var(--font-sans), system-ui, sans-serif;
+    text-transform: none;
+  }
+
+  /* §3 móvil: ninguna zona táctil menor a 44 × 44 px */
+  @media (pointer: coarse) {
+    button, a[role="button"], [data-toque] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+}
+
+/* Filete dorado: el único uso del dorado claro, por contraste insuficiente */
+.filete-dorado {
+  border-top: 2px solid var(--dorado);
+}
