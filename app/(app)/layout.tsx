@@ -1,5 +1,4 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { rutaPublica } from "@/lib/archivos-publicos";
 import { BarraLateral, NavegacionMovil } from "@/components/app/barra-lateral";
 import { BarraSuperior } from "@/components/app/barra-superior";
 import { requerirSesion } from "@/lib/sesion";
@@ -7,7 +6,7 @@ import { requerirSesion } from "@/lib/sesion";
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const perfil = await requerirSesion();
   // La ilustración de la barra es opcional: si el archivo no está, no se pide.
-  const hayIlustracion = existsSync(join(process.cwd(), "public", "ilustracion.webp"));
+  const hayIlustracion = rutaPublica("ilustracion.webp") !== null;
 
   return (
     <div className="flex min-h-screen">

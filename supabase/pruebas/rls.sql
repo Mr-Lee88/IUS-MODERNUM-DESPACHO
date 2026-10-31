@@ -103,3 +103,24 @@ select 'ALMACENAMIENTO' as prueba,
        id as bucket,
        public as es_publico   -- esperado: false
 from storage.buckets where id = 'documentos';
+
+-- ============================================================
+-- PRUEBA 4 · EL DINERO ES DEL SOCIO
+-- Es la exigencia literal del §5: los abogados no consultan honorarios,
+-- saldos, pagos ni facturación «incluso mediante consultas directas a la API».
+-- Esperado: cero en las cuatro tablas de dinero, y los asuntos sí visibles.
+-- ============================================================
+begin;
+update perfil set rol = 'abogado' where id = (select id from perfil limit 1);
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id::text from perfil limit 1), 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+select 'ABOGADO' as rol,
+       es_socio() as es_socio,                       -- esperado: false
+       (select count(*) from honorario) as honorarios, -- esperado: 0
+       (select count(*) from pago) as pagos,           -- esperado: 0
+       (select count(*) from gasto) as gastos,         -- esperado: 0
+       (select count(*) from factura) as facturas,     -- esperado: 0
+       (select count(*) from asunto) as asuntos;       -- esperado: > 0, su trabajo sí lo ve
+rollback;

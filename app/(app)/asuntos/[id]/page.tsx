@@ -97,6 +97,28 @@ export default async function PaginaAsunto({
 
   const { data: tiposDocumento } = await supabase
     .from("tipo_documento").select("clave, nombre").order("orden");
+
+  // Las cifras de dinero solo se piden si quien mira es el socio. Si no lo es,
+  // la RLS tampoco le daría ninguna fila.
+  const esSocio = perfil.rol === "socio";
+  const [{ data: honorarios }, { data: pagos }, { data: gastosAsunto }] = esSocio
+    ? await Promise.all([
+        supabase.from("honorario").select("concepto, tipo, importe, fecha")
+          .eq("asunto_id", id).is("archivado_en", null).eq("estado", "vigente").order("fecha"),
+        supabase.from("pago").select("concepto, importe, fecha, forma_pago")
+          .eq("asunto_id", id).is("archivado_en", null).order("fecha"),
+        supabase.from("gasto").select("concepto, importe, fecha, reembolsable, reembolsado")
+          .eq("asunto_id", id).is("archivado_en", null).order("fecha"),
+      ])
+    : [{ data: null }, { data: null }, { data: null }];
+
+  const sumar = (xs: { importe: number | string }[] | null) =>
+    (xs ?? []).reduce((acc, x) => acc + Number(x.importe), 0);
+  const devengado = sumar((honorarios ?? []).filter((h) => h.tipo === "devengado"));
+  const pactado = sumar((honorarios ?? []).filter((h) => h.tipo !== "devengado"));
+  const cobrado = sumar(pagos);
+  const gastado = sumar(gastosAsunto);
+  const PESOS = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
   const nombreTipoDoc = new Map((tiposDocumento ?? []).map((t) => [t.clave, t.nombre]));
 
   const cliente = (partes ?? []).find((pa) => pa.es_nuestro_cliente);
@@ -134,7 +156,7 @@ export default async function PaginaAsunto({
       </div>
 
       <div role="tablist" aria-label="Secciones del asunto" className="flex flex-wrap gap-1 border-b border-[var(--border)]">
-        {PESTANAS.filter((t) => !t.soloSocio || perfil.rol === "socio").map((t) => {
+        {PESTANAS.filter((t) => !t.soloSocio || esSocio).map((t) => {
           const esActiva = activa === t.clave;
           return (
             <Link
@@ -282,12 +304,102 @@ export default async function PaginaAsunto({
             </Seccion>
           )}
 
-          {activa === "honorarios" && perfil.rol === "socio" && (
-            <Seccion titulo="Honorarios" nota="Solo el socio ve esta pestaña">
-              <p className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
-                Los honorarios llegan en la fase 3. En la base esta información también
-                quedará cerrada: un abogado que consulte la API directamente no obtiene
-                ninguna fila.
+          {activa === "honorarios" && esSocio && (
+            <Seccion
+              titulo="Honorarios"
+              nota="Solo el socio ve esta pestaña"
+              accion={{ href: `/estado-de-cuenta/${asunto.id}`, texto: "Estado de cuenta en PDF" }}
+            >
+              {!honorarios?.length && !pagos?.length && !gastosAsunto?.length ? (
+                <p className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
+                  Este asunto no tiene honorarios registrados.
+                </p>
+              ) : (
+                <>
+                  <dl className="grid grid-cols-2 divide-x divide-y divide-[var(--border)] sm:grid-cols-4 sm:divide-y-0">
+                    {([["Pactado", pactado], ["Devengado", devengado],
+                       ["Cobrado", cobrado], ["Saldo", devengado - cobrado]] as [string, number][]).map(([k, v]) => (
+                      <div key={k} className="px-4 py-3">
+                        <dt className="text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">{k}</dt>
+                        <dd className="mt-1 font-[family-name:var(--font-serif)] text-base text-[var(--verde)]">
+                          {PESOS.format(v)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  {(honorarios ?? []).length > 0 && (
+                    <>
+                      <p className="border-y border-[var(--border)] bg-[var(--muted)]/50 px-4 py-1.5 text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                        Conceptos
+                      </p>
+                      <ul className="divide-y divide-[var(--border)]">
+                        {(honorarios ?? []).map((h) => (
+                          <li key={h.concepto + h.fecha} className="flex flex-wrap items-baseline gap-3 px-4 py-2.5 text-sm">
+                            <span className="min-w-0 flex-1">
+                              {h.concepto}
+                              <span className="ml-2 text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
+                                {h.tipo}
+                              </span>
+                            </span>
+                            <span className="text-xs text-[var(--muted-foreground)]">{h.fecha}</span>
+                            <span className="w-28 text-right">{PESOS.format(Number(h.importe))}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {(pagos ?? []).length > 0 && (
+                    <>
+                      <p className="border-y border-[var(--border)] bg-[var(--muted)]/50 px-4 py-1.5 text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                        Pagos recibidos
+                      </p>
+                      <ul className="divide-y divide-[var(--border)]">
+                        {(pagos ?? []).map((pg) => (
+                          <li key={pg.concepto + pg.fecha} className="flex flex-wrap items-baseline gap-3 px-4 py-2.5 text-sm">
+                            <span className="min-w-0 flex-1">
+                              {pg.concepto}
+                              {pg.forma_pago && (
+                                <span className="ml-2 text-xs text-[var(--muted-foreground)]">{pg.forma_pago}</span>
+                              )}
+                            </span>
+                            <span className="text-xs text-[var(--muted-foreground)]">{pg.fecha}</span>
+                            <span className="w-28 text-right text-[var(--cumplido)]">{PESOS.format(Number(pg.importe))}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {(gastosAsunto ?? []).length > 0 && (
+                    <>
+                      <p className="border-y border-[var(--border)] bg-[var(--muted)]/50 px-4 py-1.5 text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                        Gastos · {PESOS.format(gastado)}
+                      </p>
+                      <ul className="divide-y divide-[var(--border)]">
+                        {(gastosAsunto ?? []).map((g) => (
+                          <li key={g.concepto + g.fecha} className="flex flex-wrap items-baseline gap-3 px-4 py-2.5 text-sm">
+                            <span className="min-w-0 flex-1">
+                              {g.concepto}
+                              <span className="ml-2 text-xs text-[var(--muted-foreground)]">
+                                {g.reembolsable
+                                  ? (g.reembolsado ? "reembolsado" : "por reembolsar")
+                                  : "no reembolsable"}
+                              </span>
+                            </span>
+                            <span className="text-xs text-[var(--muted-foreground)]">{g.fecha}</span>
+                            <span className="w-28 text-right">{PESOS.format(Number(g.importe))}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
+              )}
+              <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted-foreground)]">
+                Esta información está cerrada también en la base: un abogado que consulte
+                la API directamente no obtiene ninguna fila.
               </p>
             </Seccion>
           )}
