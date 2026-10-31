@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { FormularioIngreso } from "./formulario";
 
@@ -45,6 +46,11 @@ export default async function PaginaIngresar({
 
         <p className="mt-4 text-center text-[11px] text-[var(--muted-foreground)]">
           Información sujeta a secreto profesional.
+        </p>
+        <p className="mt-3 text-center text-xs">
+          <Link href="/manual" className="font-medium text-[var(--dorado-tinta)] underline-offset-4 hover:underline">
+            Manual de uso: qué resuelve este sistema
+          </Link>
         </p>
       </div>
     </div>

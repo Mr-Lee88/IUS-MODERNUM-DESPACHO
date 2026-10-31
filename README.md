@@ -33,6 +33,10 @@ real.
 > datos de ejemplo. **Antes de usar el sistema con información real hay que
 > borrarla** y dar de alta cuentas propias.
 
+**📖 Manual de uso:** https://ius-modernum.vercel.app/manual — se lee sin iniciar
+sesión. Explica qué problema resuelve cada parte del sistema y dónde verlo
+funcionando.
+
 ### Qué vale la pena mirar
 
 | Pantalla | Qué enseña |

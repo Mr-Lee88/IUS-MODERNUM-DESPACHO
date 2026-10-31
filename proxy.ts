@@ -22,7 +22,9 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const ruta = request.nextUrl.pathname;
-  const esPublica = ruta.startsWith("/ingresar") || ruta.startsWith("/auth");
+  // El manual se lee antes de iniciar sesión: es la puerta de entrada.
+  const esPublica = ruta.startsWith("/ingresar") || ruta.startsWith("/auth")
+    || ruta.startsWith("/manual");
 
   if (!user && !esPublica) {
     const url = request.nextUrl.clone();

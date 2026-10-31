@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CalendarClock, FileText, FolderOpen, Gavel, LayoutList,
+  BookOpen, CalendarClock, FileText, FolderOpen, Gavel, LayoutList,
   LogOut, Receipt, Settings, UserRound, Users,
 } from "lucide-react";
 import { cn } from "cn";
@@ -101,6 +101,10 @@ export function BarraLateral({
           </span>
         </div>
         <div className="mt-1 space-y-0.5">
+          <Link href="/manual" className="flex items-center gap-3 rounded-sm px-3 py-2 text-xs text-white/70 hover:bg-[var(--verde-claro)] hover:text-white">
+            <BookOpen className="size-3.5" aria-hidden />
+            Manual de uso
+          </Link>
           <Link href="/ajustes" className="flex items-center gap-3 rounded-sm px-3 py-2 text-xs text-white/70 hover:bg-[var(--verde-claro)] hover:text-white">
             <Settings className="size-3.5" aria-hidden />
             Configuración
