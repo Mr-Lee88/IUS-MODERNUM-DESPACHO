@@ -7,6 +7,7 @@ import {
   LogOut, Receipt, Settings, UserRound, Users,
 } from "lucide-react";
 import { cn } from "cn";
+import { iniciales, type Perfil } from "@/lib/perfil";
 
 /** §3: menú lateral permanente en escritorio. En teléfono se usa la barra inferior. */
 const ENLACES = [
@@ -19,7 +20,7 @@ const ENLACES = [
   { href: "/reportes", etiqueta: "Reportes", icono: Gavel },
 ];
 
-export function BarraLateral({ rol }: { rol: string }) {
+export function BarraLateral({ perfil }: { perfil: Perfil }) {
   const ruta = usePathname();
 
   return (
@@ -41,7 +42,7 @@ export function BarraLateral({ rol }: { rol: string }) {
       <div className="filete-dorado mx-5 opacity-40" />
 
       <nav className="mt-4 flex-1 space-y-0.5 px-3" aria-label="Navegación principal">
-        {ENLACES.filter((e) => !e.soloSocio || rol === "socio").map(({ href, etiqueta, icono: Icono }) => {
+        {ENLACES.filter((e) => !e.soloSocio || perfil.rol === "socio").map(({ href, etiqueta, icono: Icono }) => {
           const activo = href === "/" ? ruta === "/" : ruta.startsWith(href);
           return (
             <Link
@@ -65,12 +66,12 @@ export function BarraLateral({ rol }: { rol: string }) {
       <div className="border-t border-white/10 p-3">
         <div className="flex items-center gap-3 px-2 py-2">
           <span className="flex size-8 items-center justify-center rounded-full bg-[var(--verde-claro)] text-xs font-medium">
-            IL
+            {perfil.iniciales ?? iniciales(perfil.nombre)}
           </span>
           <span className="min-w-0 leading-tight">
-            <span className="block truncate text-sm">Irving Lizama</span>
+            <span className="block truncate text-sm">{perfil.nombre}</span>
             <span className="block text-[10px] uppercase tracking-wider text-[var(--dorado)]">
-              {rol}
+              {perfil.rol}
             </span>
           </span>
         </div>

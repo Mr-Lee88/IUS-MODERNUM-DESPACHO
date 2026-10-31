@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileText, Lock, Plus, Users } from "lucide-react";
-import { AvisoPorVerificar, ChipEstado, Seccion } from "@/components/app/piezas";
-import {
-  ASUNTOS, AUDIENCIAS, DOCUMENTOS, GESTIONES, HONORARIOS, PARTES, TERMINOS,
-} from "@/lib/maqueta";
+import { Lock, Users } from "lucide-react";
+import { Seccion } from "@/components/app/piezas";
+import { requerirSesion } from "@/lib/sesion";
+import { crearClienteServidor } from "@/lib/supabase/server";
+import { uno } from "@/lib/supabase/relaciones";
+import { Anotar } from "./anotar";
 
 /**
  * Detalle del asunto. Cinco pestañas, en el orden del §4:
@@ -12,21 +13,36 @@ import {
  * La pestaña EXPEDIENTE del boceto se quitó por decisión de Irving (2026-10-31):
  * esos datos están en la ficha de la derecha, visibles sin dar un clic.
  */
-const PESTANAS = [
+const PESTANAS: { clave: string; etiqueta: string; soloSocio?: boolean }[] = [
   { clave: "bitacora", etiqueta: "Bitácora" },
   { clave: "documentos", etiqueta: "Documentos" },
   { clave: "terminos", etiqueta: "Audiencias y términos" },
   { clave: "partes", etiqueta: "Partes" },
   { clave: "honorarios", etiqueta: "Honorarios", soloSocio: true },
-] as const;
-
-const PESOS = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+];
 
 const CLASES: Record<string, string> = {
   hecho_procesal: "Hecho procesal",
   nota_interna: "Nota interna",
   administrativa: "Administrativa",
 };
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+  "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+function fechaLarga(iso: string | null) {
+  if (!iso) return "—";
+  const [a, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return `${d} de ${MESES[m - 1]} de ${a}`;
+}
+
+/** El título de la pestaña del navegador lleva el nombre del asunto. */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase.from("asunto").select("nombre").eq("id", id).single();
+  return { title: data?.nombre ?? "Asunto" };
+}
 
 export default async function PaginaAsunto({
   params,
@@ -37,13 +53,47 @@ export default async function PaginaAsunto({
 }) {
   const { id } = await params;
   const p = await searchParams;
-  const asunto = ASUNTOS.find((a) => a.id === id);
+  const perfil = await requerirSesion();
+  const activa = typeof p.t === "string" ? p.t : "bitacora";
+
+  const supabase = await crearClienteServidor();
+
+  const { data: asunto } = await supabase
+    .from("asunto")
+    .select(`
+      *,
+      materia:materia_clave (nombre),
+      procedimiento:procedimiento_clave (nombre),
+      etapa_ref:etapa (nombre),
+      organo:organo_id (nombre),
+      responsable:responsable_id (nombre)
+    `)
+    .eq("id", id)
+    .single();
+
   if (!asunto) notFound();
 
-  const rol = "socio"; // Paso 4: saldrá del perfil de la sesión
-  const activa = typeof p.t === "string" ? p.t : "bitacora";
-  const gestiones = GESTIONES.filter((g) => g.asuntoId === asunto.id);
-  const terminos = TERMINOS.filter((t) => t.asuntoId === asunto.id);
+  const [{ data: gestiones }, { data: partes }, { data: documentos }, { data: eventos }, { data: tipos }] =
+    await Promise.all([
+      supabase.from("gestion")
+        .select("*, autor:autor_id (nombre)")
+        .eq("asunto_id", id).is("archivado_en", null)
+        .order("ocurrio_en", { ascending: false }).order("creado_en", { ascending: false }),
+      supabase.from("parte").select("*").eq("asunto_id", id).is("archivado_en", null),
+      supabase.from("documento").select("*").eq("asunto_id", id).is("archivado_en", null)
+        .order("creado_en", { ascending: false }),
+      supabase.from("evento").select("*").eq("asunto_id", id).is("archivado_en", null)
+        .order("fecha_limite", { nullsFirst: false }),
+      supabase.from("tipo_gestion").select("clave, nombre, clase").order("orden"),
+    ]);
+
+  const cliente = (partes ?? []).find((pa) => pa.es_nuestro_cliente);
+  const materia = uno(asunto.materia);
+  const procedimiento = uno(asunto.procedimiento);
+  const etapaRef = uno(asunto.etapa_ref);
+  const organo = uno(asunto.organo);
+  const responsable = uno(asunto.responsable);
+  const hoy = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-5">
@@ -53,36 +103,26 @@ export default async function PaginaAsunto({
         <span>{asunto.nombre}</span>
       </nav>
 
-      {/* Ficha: lo que el §4 pide ver sin dar un clic */}
       <div className="flex flex-wrap items-start gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl text-[var(--verde)]">{asunto.nombre}</h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            {asunto.procedimiento} · {asunto.organo}
-            {asunto.expediente && ` · ${asunto.expediente}`} · {asunto.ambito}
+            {procedimiento?.nombre ?? materia?.nombre}
+            {organo?.nombre && ` · ${organo.nombre}`}
+            {asunto.numero_expediente && ` · ${asunto.numero_expediente}/${asunto.anio ?? ""}`}
+            {` · ${asunto.ambito === "federal" ? "Federal" : "Local Campeche"}`}
           </p>
-          <p className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+          <p className="mt-2 text-xs">
             <span className="border border-[var(--border)] px-2 py-0.5 uppercase tracking-wider">
-              Etapa: {asunto.etapa}
+              Etapa: {etapaRef?.nombre ?? asunto.etapa}
             </span>
-            {terminos[0] && <ChipEstado estado={terminos[0].estado} />}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/asuntos/${asunto.id}?t=bitacora`}
-            data-toque
-            className="flex h-11 items-center gap-2 rounded-sm bg-[var(--verde)] px-3 text-sm font-medium text-white hover:bg-[var(--verde-claro)] md:h-9"
-          >
-            <Plus className="size-4" aria-hidden />
-            Registrar gestión
-          </Link>
-        </div>
+        <Anotar asuntoId={asunto.id} tipos={tipos ?? []} hoy={hoy} />
       </div>
 
-      {/* Pestañas: el estado viaja en la URL */}
       <div role="tablist" aria-label="Secciones del asunto" className="flex flex-wrap gap-1 border-b border-[var(--border)]">
-        {PESTANAS.filter((t) => !t.soloSocio || rol === "socio").map((t) => {
+        {PESTANAS.filter((t) => !t.soloSocio || perfil.rol === "socio").map((t) => {
           const esActiva = activa === t.clave;
           return (
             <Link
@@ -105,87 +145,64 @@ export default async function PaginaAsunto({
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div>
           {activa === "bitacora" && (
-            <Seccion titulo="Bitácora del asunto" nota={`${gestiones.length} registros`}>
-              <ol className="divide-y divide-[var(--border)]">
-                {gestiones.map((g) => (
-                  <li key={g.id} className="px-4 py-4">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted-foreground)]">
-                      <time>{g.ocurrioEn} · {g.hora}</time>
-                      <span className="border border-[var(--border)] px-1.5 py-0.5 uppercase tracking-wider">
-                        {g.tipo}
-                      </span>
-                      <span className={g.clase === "nota_interna" ? "text-[var(--dorado-tinta)]" : undefined}>
-                        {CLASES[g.clase]}
-                      </span>
-                      {!g.publicada && (
-                        <span className="inline-flex items-center gap-1">
-                          <Lock className="size-3" aria-hidden />
-                          No visible al cliente
+            <Seccion titulo="Bitácora del asunto" nota={`${gestiones?.length ?? 0} registros`}>
+              {!gestiones?.length ? (
+                <p className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
+                  Todavía no hay nada anotado. Use «Registrar gestión».
+                </p>
+              ) : (
+                <ol className="divide-y divide-[var(--border)]">
+                  {gestiones.map((g) => (
+                    <li key={g.id} className="px-4 py-4">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted-foreground)]">
+                        <time dateTime={g.ocurrio_en}>
+                          {fechaLarga(g.ocurrio_en)}
+                          {g.hora && ` · ${g.hora.slice(0, 5)}`}
+                        </time>
+                        <span className="border border-[var(--border)] px-1.5 py-0.5 uppercase tracking-wider">
+                          {g.tipo}
                         </span>
+                        <span className={g.clase === "nota_interna" ? "text-[var(--dorado-tinta)]" : undefined}>
+                          {CLASES[g.clase]}
+                        </span>
+                        {!g.publicada_al_cliente && (
+                          <span className="inline-flex items-center gap-1">
+                            <Lock className="size-3" aria-hidden />
+                            No visible al cliente
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1.5 font-medium">{g.titulo}</p>
+                      {g.descripcion && (
+                        <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">{g.descripcion}</p>
                       )}
-                    </div>
-                    <p className="mt-1.5 font-medium">{g.titulo}</p>
-                    <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">{g.descripcion}</p>
-                    {g.documento && (
-                      <p className="mt-2 inline-flex items-center gap-2 border border-[var(--border)] px-2 py-1 text-xs">
-                        <FileText className="size-3.5 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
-                        {g.documento.nombre}
-                        <span className="text-[var(--muted-foreground)]">({g.documento.peso})</span>
+                      <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+                        Capturó: {uno(g.autor)?.nombre ?? "—"} · el {fechaLarga(g.creado_en?.slice(0, 10))}
                       </p>
-                    )}
-                    <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-                      Capturó: {g.autor}
-                    </p>
-                  </li>
-                ))}
-              </ol>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </Seccion>
           )}
 
           {activa === "documentos" && (
-            <Seccion titulo="Documentos del asunto" nota={`${DOCUMENTOS.length} archivos`}>
-              <ul className="divide-y divide-[var(--border)]">
-                {DOCUMENTOS.filter((d) => rol === "socio" || d.nivelAcceso !== "socio").map((d) => (
-                  <li key={d.nombre} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                    <FileText className="size-4 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate">{d.nombre}</span>
-                    <span className="text-xs text-[var(--muted-foreground)]">{d.fecha} · {d.peso}</span>
-                    <span className="inline-flex items-center gap-1 border border-[var(--border)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
-                      {d.nivelAcceso === "socio" && <Lock className="size-3" aria-hidden />}
-                      {d.nivelAcceso}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted-foreground)]">
-                Cada documento guarda su nivel de acceso: socio, equipo o cliente. El
-                almacenamiento es privado y cada descarga usa un enlace temporal.
+            <Seccion titulo="Documentos del asunto" nota={`${documentos?.length ?? 0}`}>
+              <p className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
+                {documentos?.length
+                  ? `${documentos.length} documentos.`
+                  : "Todavía no hay documentos. La subida al almacenamiento privado llega en el paso 8."}
               </p>
             </Seccion>
           )}
 
           {activa === "terminos" && (
-            <Seccion titulo="Audiencias y términos">
-              <ul className="divide-y divide-[var(--border)]">
-                {terminos.map((t) => (
-                  <li key={t.queVence} className="px-4 py-3">
-                    <p className="font-medium">{t.queVence}</p>
-                    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted-foreground)]">
-                      <ChipEstado estado={t.estado} />
-                      <span>Vence: {t.fecha}</span>
-                      {!t.verificado && <AvisoPorVerificar />}
-                    </p>
-                  </li>
-                ))}
-                {AUDIENCIAS.filter((a) => a.asunto.includes("Rosado Pech")).map((a) => (
-                  <li key={a.dia} className="px-4 py-3">
-                    <p className="font-medium">{a.tipo}</p>
-                    <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                      {a.dia} {a.fecha} nov · {a.hora} · {a.organo}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+            <Seccion titulo="Audiencias y términos" nota={`${eventos?.length ?? 0}`}>
+              <p className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
+                {eventos?.length
+                  ? `${eventos.length} eventos.`
+                  : "Sin audiencias ni términos capturados."}
+              </p>
               <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted-foreground)]">
                 El cómputo de plazos llega en la fase 2. Mientras tanto los términos se
                 capturan a mano y nacen sin verificar: el sistema no calcula vencimientos
@@ -197,21 +214,14 @@ export default async function PaginaAsunto({
           {activa === "partes" && (
             <Seccion titulo="Partes del asunto" nota="Cada persona con su carácter procesal">
               <ul className="divide-y divide-[var(--border)]">
-                {PARTES.map((pa) => (
-                  <li key={pa.nombre} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                {(partes ?? []).map((pa) => (
+                  <li key={pa.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                     <Users className="size-4 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      {pa.nombre}
-                      {pa.representante && (
-                        <span className="block text-xs text-[var(--muted-foreground)]">
-                          Representante: {pa.representante}
-                        </span>
-                      )}
-                    </span>
+                    <span className="min-w-0 flex-1">{pa.nombre}</span>
                     <span className="border border-[var(--border)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
                       {pa.caracter}
                     </span>
-                    {pa.esCliente && (
+                    {pa.es_nuestro_cliente && (
                       <span className="text-[10px] uppercase tracking-wider text-[var(--cumplido)]">
                         Nuestro cliente
                       </span>
@@ -219,50 +229,33 @@ export default async function PaginaAsunto({
                   </li>
                 ))}
               </ul>
-              <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted-foreground)]">
-                Un asunto admite tantas partes como haga falta: litisconsorcio, varios
-                herederos, terceros interesados.
-              </p>
             </Seccion>
           )}
 
-          {activa === "honorarios" && rol === "socio" && (
+          {activa === "honorarios" && perfil.rol === "socio" && (
             <Seccion titulo="Honorarios" nota="Solo el socio ve esta pestaña">
-              <dl className="divide-y divide-[var(--border)]">
-                <div className="flex justify-between px-4 py-3 text-sm">
-                  <dt>Presupuesto</dt>
-                  <dd className="font-medium">{PESOS.format(HONORARIOS.presupuesto)}</dd>
-                </div>
-                <div className="flex justify-between px-4 py-3 text-sm">
-                  <dt>Anticipo recibido</dt>
-                  <dd className="font-medium">{PESOS.format(HONORARIOS.anticipo)}</dd>
-                </div>
-                <div className="flex justify-between px-4 py-3 text-sm">
-                  <dt>Saldo</dt>
-                  <dd className="font-medium text-[var(--dorado-tinta)]">{PESOS.format(HONORARIOS.saldo)}</dd>
-                </div>
-              </dl>
-              <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted-foreground)]">
-                En la base de datos esta información también queda cerrada: un abogado
-                que consulte la API directamente no obtiene ninguna fila.
+              <p className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
+                Los honorarios llegan en la fase 3. En la base esta información también
+                quedará cerrada: un abogado que consulte la API directamente no obtiene
+                ninguna fila.
               </p>
             </Seccion>
           )}
         </div>
 
-        {/* Columna de la derecha: información general */}
         <aside className="space-y-5">
           <Seccion titulo="Información general">
             <dl className="divide-y divide-[var(--border)] text-sm">
               {[
-                ["Cliente", asunto.cliente],
-                ["Materia", asunto.materia],
-                ["Procedimiento", asunto.procedimiento],
-                ["Órgano", asunto.organo],
-                ["Expediente", asunto.expediente ?? "Sin expediente"],
-                ["Fuero", asunto.ambito],
-                ["Etapa actual", asunto.etapa],
-                ["Responsable", asunto.responsable],
+                ["Cliente", cliente?.nombre ?? "—"],
+                ["Materia", materia?.nombre ?? asunto.materia_clave],
+                ["Procedimiento", procedimiento?.nombre ?? "Sin definir"],
+                ["Órgano", organo?.nombre ?? "Sin órgano"],
+                ["Expediente", asunto.numero_expediente ? `${asunto.numero_expediente}/${asunto.anio ?? ""}` : "Sin expediente"],
+                ["Fuero", asunto.ambito === "federal" ? "Federal" : "Local Campeche"],
+                ["Etapa actual", etapaRef?.nombre ?? asunto.etapa],
+                ["Responsable", responsable?.nombre ?? "Sin asignar"],
+                ["Apertura", fechaLarga(asunto.fecha_apertura)],
               ].map(([k, v]) => (
                 <div key={k} className="flex gap-3 px-4 py-2.5">
                   <dt className="w-28 shrink-0 text-xs uppercase tracking-wider text-[var(--muted-foreground)]">{k}</dt>
@@ -272,17 +265,11 @@ export default async function PaginaAsunto({
             </dl>
           </Seccion>
 
-          <Seccion titulo="Documentos recientes" accion={{ href: `/asuntos/${asunto.id}?t=documentos`, texto: "Ver todos" }}>
-            <ul className="divide-y divide-[var(--border)]">
-              {DOCUMENTOS.slice(0, 3).map((d) => (
-                <li key={d.nombre} className="flex items-center gap-2 px-4 py-2.5 text-xs">
-                  <FileText className="size-3.5 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate">{d.nombre}</span>
-                  <span className="text-[var(--muted-foreground)]">{d.fecha}</span>
-                </li>
-              ))}
-            </ul>
-          </Seccion>
+          {asunto.observaciones && (
+            <Seccion titulo="Observaciones">
+              <p className="px-4 py-3 text-sm">{asunto.observaciones}</p>
+            </Seccion>
+          )}
         </aside>
       </div>
     </div>

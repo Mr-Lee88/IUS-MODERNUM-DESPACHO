@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { AlertTriangle, CalendarClock, CheckCircle2, HelpCircle } from "lucide-react";
 import { cn } from "cn";
-import type { EstadoTermino } from "@/lib/maqueta";
+
+/** Estados de un término, en el orden en que aprietan. */
+export type EstadoTermino = "vence_hoy" | "proximo" | "cumplido" | "por_verificar";
 
 /** Encabezado de sección: título institucional en mayúsculas más una acción a la derecha. */
 export function Seccion({

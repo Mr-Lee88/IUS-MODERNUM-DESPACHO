@@ -1,17 +1,35 @@
 import Link from "next/link";
-import { FileText, FolderOpen, MessageSquare, UserRound } from "lucide-react";
+import { FileText, FolderOpen, MessageSquare, Users, UserRound } from "lucide-react";
 import { Seccion } from "@/components/app/piezas";
-import { ASUNTOS, DOCUMENTOS, GESTIONES } from "@/lib/maqueta";
+import { crearClienteServidor } from "@/lib/supabase/server";
 
 export const metadata = { title: "Buscar" };
 
-/**
- * Resultados del buscador universal (§2.A).
- *
- * Paso 1: busca sobre la maqueta en memoria, solo para probar la pantalla. En el
- * paso 9 esto llama a la función `buscar_todo` de Postgres, con `tsvector`, índice
- * GIN y la RLS del usuario que pregunta. Nada se filtra en el navegador.
- */
+interface Resultado {
+  tipo: "cliente" | "asunto" | "gestion" | "parte" | "documento";
+  id: string;
+  titulo: string;
+  detalle: string | null;
+  asunto_id: string | null;
+  relevancia: number;
+}
+
+const GRUPOS = [
+  { tipo: "cliente", etiqueta: "Clientes", icono: UserRound },
+  { tipo: "asunto", etiqueta: "Asuntos", icono: FolderOpen },
+  { tipo: "gestion", etiqueta: "Gestiones", icono: MessageSquare },
+  { tipo: "parte", etiqueta: "Partes", icono: Users },
+  { tipo: "documento", etiqueta: "Documentos", icono: FileText },
+] as const;
+
+function destino(r: Resultado) {
+  if (r.tipo === "cliente") return `/clientes/${r.id}`;
+  if (r.tipo === "asunto") return `/asuntos/${r.id}`;
+  if (r.tipo === "gestion") return `/asuntos/${r.asunto_id}?t=bitacora`;
+  if (r.tipo === "parte") return `/asuntos/${r.asunto_id}?t=partes`;
+  return `/asuntos/${r.asunto_id}?t=documentos`;
+}
+
 export default async function PaginaBuscar({
   searchParams,
 }: {
@@ -19,22 +37,18 @@ export default async function PaginaBuscar({
 }) {
   const p = await searchParams;
   const q = (typeof p.q === "string" ? p.q : "").trim();
-  const aguja = q.toLowerCase();
 
-  const asuntos = q
-    ? ASUNTOS.filter((a) =>
-        [a.nombre, a.cliente, a.expediente ?? "", a.organo, a.procedimiento, a.materia]
-          .join(" ").toLowerCase().includes(aguja))
-    : [];
-  const clientes = q
-    ? [...new Set(ASUNTOS.map((a) => a.cliente))].filter((c) => c.toLowerCase().includes(aguja))
-    : [];
-  const gestiones = q
-    ? GESTIONES.filter((g) => [g.titulo, g.descripcion, g.tipo].join(" ").toLowerCase().includes(aguja))
-    : [];
-  const documentos = q ? DOCUMENTOS.filter((d) => d.nombre.toLowerCase().includes(aguja)) : [];
+  let resultados: Resultado[] = [];
+  let fallo: string | null = null;
 
-  const total = asuntos.length + clientes.length + gestiones.length + documentos.length;
+  if (q) {
+    // La búsqueda ocurre en Postgres con tsvector e índice GIN, y la RLS filtra
+    // lo que cada quien puede ver. Nada se descarga al navegador para filtrarlo.
+    const supabase = await crearClienteServidor();
+    const { data, error } = await supabase.rpc("buscar_todo", { consulta: q });
+    if (error) fallo = error.message;
+    else resultados = (data ?? []) as Resultado[];
+  }
 
   return (
     <div className="space-y-5">
@@ -42,82 +56,44 @@ export default async function PaginaBuscar({
         <h1 className="text-xl text-[var(--verde)]">Buscar</h1>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           {q
-            ? `${total} ${total === 1 ? "resultado" : "resultados"} para «${q}»`
-            : "Escriba algo en el buscador: Ctrl + K desde cualquier pantalla."}
+            ? `${resultados.length} ${resultados.length === 1 ? "resultado" : "resultados"} para «${q}»`
+            : "Abra el buscador con Ctrl + K desde cualquier pantalla."}
         </p>
       </div>
 
-      {clientes.length > 0 && (
-        <Seccion titulo="Clientes" nota={`${clientes.length}`}>
-          <ul className="divide-y divide-[var(--border)]">
-            {clientes.map((c) => (
-              <li key={c} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <UserRound className="size-4 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
-                <Link href="/clientes" className="underline-offset-2 hover:underline">{c}</Link>
-              </li>
-            ))}
-          </ul>
-        </Seccion>
+      {fallo && (
+        <p role="alert" className="border border-[var(--vence-hoy)]/40 px-4 py-3 text-sm text-[var(--vence-hoy)]">
+          No se pudo buscar: {fallo}
+        </p>
       )}
 
-      {asuntos.length > 0 && (
-        <Seccion titulo="Asuntos" nota={`${asuntos.length}`}>
-          <ul className="divide-y divide-[var(--border)]">
-            {asuntos.map((a) => (
-              <li key={a.id} className="flex items-start gap-3 px-4 py-3 text-sm">
-                <FolderOpen className="mt-0.5 size-4 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
-                <span className="min-w-0">
-                  <Link href={`/asuntos/${a.id}`} className="font-medium text-[var(--verde)] underline-offset-2 hover:underline">
-                    {a.nombre}
-                  </Link>
-                  <span className="block text-xs text-[var(--muted-foreground)]">
-                    {a.cliente} · {a.procedimiento}
-                    {a.expediente && ` · ${a.expediente}`} · {a.organo}
+      {GRUPOS.map(({ tipo, etiqueta, icono: Icono }) => {
+        const grupo = resultados.filter((r) => r.tipo === tipo);
+        if (!grupo.length) return null;
+        return (
+          <Seccion key={tipo} titulo={etiqueta} nota={`${grupo.length}`}>
+            <ul className="divide-y divide-[var(--border)]">
+              {grupo.map((r) => (
+                <li key={`${r.tipo}-${r.id}`} className="flex items-start gap-3 px-4 py-3 text-sm">
+                  <Icono className="mt-0.5 size-4 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
+                  <span className="min-w-0">
+                    <Link href={destino(r)} className="font-medium text-[var(--verde)] underline-offset-2 hover:underline">
+                      {r.titulo}
+                    </Link>
+                    {r.detalle && (
+                      <span className="block text-xs text-[var(--muted-foreground)]">{r.detalle}</span>
+                    )}
                   </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Seccion>
-      )}
+                </li>
+              ))}
+            </ul>
+          </Seccion>
+        );
+      })}
 
-      {gestiones.length > 0 && (
-        <Seccion titulo="Gestiones" nota={`${gestiones.length}`}>
-          <ul className="divide-y divide-[var(--border)]">
-            {gestiones.map((g) => (
-              <li key={g.id} className="flex items-start gap-3 px-4 py-3 text-sm">
-                <MessageSquare className="mt-0.5 size-4 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
-                <span className="min-w-0">
-                  <Link href={`/asuntos/${g.asuntoId}?t=bitacora`} className="font-medium text-[var(--verde)] underline-offset-2 hover:underline">
-                    {g.titulo}
-                  </Link>
-                  <span className="block text-xs text-[var(--muted-foreground)]">
-                    {g.ocurrioEn} · {g.tipo} · {g.descripcion}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Seccion>
-      )}
-
-      {documentos.length > 0 && (
-        <Seccion titulo="Documentos" nota={`${documentos.length}`}>
-          <ul className="divide-y divide-[var(--border)]">
-            {documentos.map((d) => (
-              <li key={d.nombre} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <FileText className="size-4 shrink-0 text-[var(--dorado-tinta)]" aria-hidden />
-                <span className="min-w-0 flex-1 truncate">{d.nombre}</span>
-                <span className="text-xs text-[var(--muted-foreground)]">{d.fecha}</span>
-              </li>
-            ))}
-          </ul>
-        </Seccion>
-      )}
-
-      {q && total === 0 && (
+      {q && !fallo && resultados.length === 0 && (
         <p className="border border-[var(--border)] bg-white px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
-          Nada coincide con «{q}» en la maqueta.
+          Nada coincide con «{q}».
         </p>
       )}
     </div>
