@@ -1,8 +1,34 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Refresca la sesión de Supabase en cada petición y cierra las rutas de la app. */
+/**
+ * Refresca la sesión de Supabase y cierra las rutas de la aplicación.
+ *
+ * Dos cuidados que cuestan la sesión entera si se olvidan:
+ *
+ * 1. Cuando este proxy refresca el token, Supabase devuelve cookies nuevas. Si
+ *    la respuesta que sale es un `redirect` creado desde cero, esas cookies se
+ *    quedan en el camino: el navegador conserva las viejas, que ya no sirven, y
+ *    el usuario queda fuera. Por eso cada redirección copia las cookies.
+ *
+ * 2. Next precarga los enlaces al pasar el ratón por encima. Esas peticiones
+ *    también pasan por aquí, así que varias pueden intentar refrescar el MISMO
+ *    token a la vez; Supabase invalida un token de refresco reutilizado y la
+ *    sesión muere sin que nadie haya hecho nada raro. Una precarga no necesita
+ *    comprobar nada: se deja pasar.
+ */
 export async function proxy(request: NextRequest) {
+  const ruta = request.nextUrl.pathname;
+
+  // El manual se lee antes de iniciar sesión: es la puerta de entrada.
+  const esPublica = ruta.startsWith("/ingresar") || ruta.startsWith("/auth")
+    || ruta.startsWith("/manual");
+
+  // Precarga de Next: no toca la sesión.
+  if (request.headers.get("next-router-prefetch") === "1") {
+    return NextResponse.next({ request });
+  }
+
   let respuesta = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -21,21 +47,20 @@ export async function proxy(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const ruta = request.nextUrl.pathname;
-  // El manual se lee antes de iniciar sesión: es la puerta de entrada.
-  const esPublica = ruta.startsWith("/ingresar") || ruta.startsWith("/auth")
-    || ruta.startsWith("/manual");
 
-  if (!user && !esPublica) {
+  /** Redirige SIN perder las cookies que el refresco acaba de escribir. */
+  function redirigirA(destino: string) {
     const url = request.nextUrl.clone();
-    url.pathname = "/ingresar";
-    return NextResponse.redirect(url);
+    url.pathname = destino;
+    url.search = "";
+    const salida = NextResponse.redirect(url);
+    for (const cookie of respuesta.cookies.getAll()) salida.cookies.set(cookie);
+    return salida;
   }
-  if (user && ruta.startsWith("/ingresar")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
+
+  if (!user && !esPublica) return redirigirA("/ingresar");
+  if (user && ruta.startsWith("/ingresar")) return redirigirA("/");
+
   return respuesta;
 }
 
