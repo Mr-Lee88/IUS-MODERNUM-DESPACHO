@@ -1,6 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { crearClienteServidor } from "@/lib/supabase/server";
+import { sujetoVigente, tokenDeSesion } from "@/lib/token-sesion";
 import type { Perfil } from "@/lib/perfil";
 
 export type { Perfil, Rol } from "@/lib/perfil";
@@ -21,55 +22,24 @@ export { esDelEquipo, iniciales } from "@/lib/perfil";
  * una sola fila. Un token inventado no pasaría la RLS. Lo que se decide aquí
  * es a quién se le pinta la interfaz; quién puede ver qué datos lo decide
  * siempre la base.
+ *
+ * Leer la cookie y juzgar el token es trabajo de `lib/token-sesion.ts`, que es
+ * también lo que usa el guardia de rutas. Tienen que coincidir: cuando no
+ * coincidían, un token vencido hacía rebotar al navegador entre `/` e
+ * `/ingresar` hasta ERR_TOO_MANY_REDIRECTS.
  */
-
-/** Lee la carga del JWT sin verificar la firma: de ahí sale el identificador. */
-function sujetoDelToken(token: string): string | null {
-  try {
-    const carga = token.split(".")[1];
-    if (!carga) return null;
-    const json = Buffer.from(carga.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString();
-    const { sub, exp } = JSON.parse(json) as { sub?: string; exp?: number };
-    // Un token vencido no sirve ni para preguntar.
-    if (!sub || (exp && exp * 1000 < Date.now())) return null;
-    return sub;
-  } catch {
-    return null;
-  }
-}
 
 /** El token de acceso que viene en la cookie de sesión, sin tocar la cookie. */
 async function tokenDeLaCookie(): Promise<string | null> {
   const { cookies } = await import("next/headers");
   const almacen = await cookies();
-
-  // @supabase/ssr guarda la sesión en `sb-<ref>-auth-token`, partida en
-  // `.0`, `.1`… cuando no cabe en una sola cookie.
-  const trozos = almacen
-    .getAll()
-    .filter((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  if (trozos.length === 0) return null;
-
-  let crudo = trozos.map((c) => c.value).join("");
-  if (crudo.startsWith("base64-")) {
-    try {
-      crudo = Buffer.from(crudo.slice("base64-".length), "base64").toString();
-    } catch {
-      return null;
-    }
-  }
-  try {
-    return (JSON.parse(crudo) as { access_token?: string }).access_token ?? null;
-  } catch {
-    return null;
-  }
+  return tokenDeSesion(almacen.getAll());
 }
 
 /** Devuelve el perfil del usuario autenticado o manda a iniciar sesión. */
 export async function requerirSesion(): Promise<Perfil> {
   const token = await tokenDeLaCookie();
-  const sub = token ? sujetoDelToken(token) : null;
+  const sub = token ? sujetoVigente(token) : null;
   if (!sub) redirect("/ingresar");
 
   const supabase = await crearClienteServidor();
@@ -93,7 +63,7 @@ export async function requerirSocio(): Promise<Perfil> {
 /** Igual que `requerirSesion`, pero sin redirigir: para las rutas que sirven archivos. */
 export async function perfilDeLaPeticion(): Promise<Perfil | null> {
   const token = await tokenDeLaCookie();
-  const sub = token ? sujetoDelToken(token) : null;
+  const sub = token ? sujetoVigente(token) : null;
   if (!sub) return null;
 
   const supabase = await crearClienteServidor();
